@@ -246,8 +246,8 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 
 HOSTCC       = gcc
 HOSTCXX      = g++
-HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -O2 -fomit-frame-pointer
-HOSTCXXFLAGS = -O2
+HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -Ofast -fomit-frame-pointer -fgcse-las
+HOSTCXXFLAGS = -Ofast -fgcse-las
 
 # Decide whether to build built-in, modular, or both.
 # Normally, just do built-in.
@@ -331,7 +331,7 @@ include $(srctree)/scripts/Kbuild.include
 
 AS		= $(CROSS_COMPILE)as
 LD		= $(CROSS_COMPILE)ld
-REAL_CC		= $(CROSS_COMPILE)gcc
+CC		= $(CROSS_COMPILE)gcc
 CPP		= $(CC) -E
 AR		= $(CROSS_COMPILE)ar
 NM		= $(CROSS_COMPILE)nm
@@ -346,16 +346,26 @@ KALLSYMS	= scripts/kallsyms
 PERL		= perl
 CHECK		= sparse
 
-# Use the wrapper for the compiler.  This wrapper scans for new
-# warnings and causes the build to stop upon encountering them.
-CC		= $(srctree)/scripts/gcc-wrapper.py $(REAL_CC)
-
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
-		  -Wbitwise -Wno-return-void $(CF)
-CFLAGS_MODULE   =
-AFLAGS_MODULE   =
-LDFLAGS_MODULE  =
-CFLAGS_KERNEL	=
+				  -Wbitwise -Wno-return-void $(CF)
+
+MODFLAGS        = -DMODULE \
+                  -mcpu=cortex-a8 \
+                  -mfpu=neon-vfpv4 \
+                  -mtune=cortex-a15 \
+                  -Ofast \
+                  -fgcse-las
+
+CFLAGS_MODULE   = $(MODFLAGS)
+AFLAGS_MODULE   = $(MODFLAGS)
+LDFLAGS_MODULE  = -T $(srctree)/scripts/module-common.lds
+CFLAGS_KERNEL   = -mcpu=cortex-a8 \
+                  -mfpu=neon-vfpv4 \
+                  -mtune=cortex-a15 \
+                  -O2 \
+                  -fgcse-las \
+                  -fpredictive-commoning \
+		          -Wno-error=implicit-function-declaration
 AFLAGS_KERNEL	=
 CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage
 
@@ -369,11 +379,23 @@ LINUXINCLUDE    := -I$(srctree)/arch/$(hdr-arch)/include \
 
 KBUILD_CPPFLAGS := -D__KERNEL__
 
+#
+# Kernel MODS
+#
+CFLAGS_KRAIT = -mcpu=cortex-a8 -mtune=cortex-a15 -mfpu=neon-vfpv4 -funsafe-math-optimizations
+CFLAGS_MODULO = -fmodulo-sched -fmodulo-sched-allow-regmoves
+KERNEL_MODS  = $(CFLAGS_KRAIT) $(CFLAGS_MODULO)
+
 KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -fno-strict-aliasing -fno-common \
 		   -Werror-implicit-function-declaration \
 		   -Wno-format-security \
-		   -fno-delete-null-pointer-checks
+		   -funswitch-loops -fpredictive-commoning -fgcse-after-reload \
+		   -fno-delete-null-pointer-checks \
+		   -ftree-vectorize \
+		   -mno-unaligned-access \
+		   -Wno-sizeof-pointer-memaccess \
+		   $(KERNEL_MODS)
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
 KBUILD_AFLAGS   := -D__ASSEMBLY__
@@ -563,11 +585,11 @@ endif # $(dot-config)
 # Defaults to vmlinux, but the arch makefile usually adds further targets
 all: vmlinux
 
-ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
-KBUILD_CFLAGS	+= -Os $(call cc-disable-warning,maybe-uninitialized,)
-else
-KBUILD_CFLAGS	+= -O2
-endif
+# ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
+# KBUILD_CFLAGS	+= -Os
+# else
+KBUILD_CFLAGS	+= -Ofast
+# endif
 
 include $(srctree)/arch/$(SRCARCH)/Makefile
 
@@ -600,7 +622,7 @@ endif
 KBUILD_CFLAGS   += $(call cc-option, -fno-var-tracking-assignments)
 
 ifdef CONFIG_DEBUG_INFO
-KBUILD_CFLAGS	+= -g
+KBUILD_CFLAGS	+= -gdwarf-2
 KBUILD_AFLAGS	+= -gdwarf-2
 endif
 
