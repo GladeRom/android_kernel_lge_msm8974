@@ -50,6 +50,26 @@
 #include "../platsmp.h"
 #include <mach/board_lge.h>
 
+#ifdef CONFIG_BRICKED_THERMAL
+static struct msm_thermal_data msm_thermal_pdata = {
+	.sensor_id = 0,
+	.poll_ms = 400,
+	.shutdown_temp = 85,
+
+	.allowed_max_high = 84,
+	.allowed_max_low = 79,
+	.allowed_max_freq = 300000,
+
+	.allowed_mid_high = 78,
+	.allowed_mid_low = 72,
+	.allowed_mid_freq = 960000,
+
+	.allowed_low_high = 71,
+	.allowed_low_low = 65,
+	.allowed_low_freq = 1497600,
+};
+#endif
+
 /*
  * Used to satisfy dependencies for devices that need to be
  * run early or in a particular order. Most likely your device doesn't fall
@@ -72,7 +92,11 @@ void __init msm8974_add_drivers(void)
 	else
 		msm_clock_init(&msm8974_clock_init_data);
 	tsens_tm_init_driver();
+#ifdef CONFIG_BRICKED_THERMAL
+	msm_thermal_init(&msm_thermal_pdata);
+#else
 	msm_thermal_device_init();
+#endif
 #ifdef CONFIG_LGE_LCD_TUNING
 	lge_add_lcd_misc_devices();
 #endif
