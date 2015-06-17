@@ -69,18 +69,6 @@ struct msm_thermal_stat {
 };
 #endif
 
-struct msm_thermal_data_intelli {
-	uint32_t sensor_id;
-	uint32_t poll_ms;
-	int32_t limit_temp_degC;
-	int32_t temp_hysteresis_degC;
-	uint32_t freq_step;
-	uint32_t freq_control_mask;
-	int32_t core_limit_temp_degC;
-	int32_t core_temp_hysteresis_degC;
-	uint32_t core_control_mask;
-};
-
 #ifdef CONFIG_THERMAL_MONITOR
 extern int msm_thermal_init(struct msm_thermal_data *pdata);
 #ifndef CONFIG_BRICKED_THERMAL
